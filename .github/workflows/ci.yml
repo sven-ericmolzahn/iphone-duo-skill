@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Least privilege: nothing here needs to write to the repository, and this is a
+# public repo that accepts pull requests from forks.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate the skill against the Agent Skills spec
+        run: python3 tests/validate-skill.py
+
+# The Swift type-check (tests/typecheck.sh) deliberately does not run here:
+# it needs Xcode 27.1 and the iOS 27.1 simulator SDK, which GitHub's macOS
+# runners do not ship yet. Run it locally after every Xcode update.
