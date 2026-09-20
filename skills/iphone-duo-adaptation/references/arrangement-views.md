@@ -11,7 +11,7 @@ NavigationStack            ← navigation, outside
    └─ secondary (may contain a ScrollView / List)
 ```
 
-**Contents:** [Which style](#which-style) · [Split](#split) · [Pane sizing](#pane-sizing-the-part-everyone-gets-wrong) · [Measured behaviour](#measured-behaviour) · [Overlay](#overlay) · [Reading the arrangement from inside](#reading-the-arrangement-from-inside-a-pane) · [UIKit](#uikit) · [Migration recipe](#migration-recipe) · [When not to use one](#when-not-to-use-one)
+**Contents:** [Which style](#which-style) · [Split](#split) · [Pane sizing](#pane-sizing-the-part-everyone-gets-wrong) · [Measured behaviour](#measured-behaviour) · [Backgrounds under the bar](#backgrounds-that-have-to-run-under-the-bar) · [Overlay](#overlay) · [Reading the arrangement from inside](#reading-the-arrangement-from-inside-a-pane) · [UIKit](#uikit) · [Migration recipe](#migration-recipe) · [When not to use one](#when-not-to-use-one)
 
 ## Which style
 
@@ -117,6 +117,46 @@ Four things to take from that table:
 3. The fold **overrides `maxWidth`**: the primary took 456 although capped at 440. That is correct behaviour; there is no need to withdraw size preferences when folded.
 4. The re-layout is **live**. In one log the division region went inactive → active and the panes re-flowed without any code observing the hinge.
 
+## Backgrounds that have to run under the bar
+
+The arrangement hands each pane a rectangle, and a pane's edges are the *arrangement's* — on the inner display in landscape the trailing pane stops where the vertical bar starts. Measured with the arrangement inside the safe area: a hero pane 330 points wide ending at x = 867, the bar occupying 867…951, and the pane's own `safeAreaInsets` all zero. The pane does not know the bar is there.
+
+So a full-bleed background that has to run under the bar cannot be drawn inside the pane:
+
+- `.ignoresSafeArea()` on the pane's content grows the scene past its own bounds, but not towards the screen edge: it grows over the **neighbouring** pane, and everything laid out inside moves with it. The symptom in the app this was measured in was the first ~20 points of every line of text sheared off at a hard vertical line.
+- `.offset(x:)` to push it back takes the same width off the other side.
+
+Draw it as a plain sibling *behind* the whole arrangement instead, and keep only content in the panes:
+
+```swift
+ZStack {
+    GeometryReader { screen in                       // spans the screen: nothing clips a ZStack sibling
+        HeroRoom()
+            .frame(width: max(screen.size.width - heroPaneMinX, 1))
+            .offset(x: heroPaneMinX)
+    }
+    .ignoresSafeArea()
+    .allowsHitTesting(false)
+
+    ArrangementView {
+        Shelf()
+            .splitArrangementLayoutSize(minWidth: 360)
+    } secondary: {
+        Hero(drawsRoom: false)                       // the book and the words only
+            .ignoresSafeArea(.container, edges: .vertical)      // vertical is safe: no neighbour that way
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minX } action: { heroPaneMinX = $0 }
+            .splitArrangementLayoutSize(minWidth: 300, idealWidth: 330, maxWidth: 440)
+    }
+    .arrangementViewStyle(.split.axes(.horizontal))
+}
+```
+
+The pane reports upward where it begins — and, if the background is anchored to the words, where those begin — and the sibling draws from there to the screen edge.
+
+`backgroundExtensionEffect()` is the system's answer to the same problem and does reach under the bar, applied **to the pane**; applied to the image inside the pane it did nothing. It mirrors the view's edge pixels outward, which suits a photograph or a colour field and not a blurred backdrop, where the mirror axis is plainly visible as a seam.
+
+**An open observation, not a recommendation.** `.ignoresSafeArea(.container, edges: .horizontal)` on the `ArrangementView` *itself* does widen the split to the whole screen — measured, the trailing pane then ran from x 621 to 951, flush with the screen edge. But the content inset that pane's own content needed then rendered wrong: the scene measured in the right place (`frame(in: .global)` = the pane, its content block at x = 20, width 206) and *drew* shifted left, clipped. A paging `TabView` inside the pane is the suspect; that was not proved. Unless you want to chase it, the sibling above is the cheaper answer.
+
 ## Choosing the container from the device
 
 A recurring suggestion is to branch on whether the device folds — arrangement if it does, `NavigationSplitView` if it does not — so that "on the outer display it behaves like a normal iPhone". Measured on an iPhone Duo (iPhone19,4), it does not.
@@ -203,7 +243,7 @@ From a single scrolling column with a hero on top (the most common phone layout)
    - *centre* the content vertically — hung from the top it leaves the same empty stretch the hero was meant to avoid, just rotated;
    - let the key visual grow with the pane, within a cap;
    - if the hero faded into the page at its bottom edge, give it the same fade on its **trailing** edge so there is no seam between the panes.
-4. **Safe areas per pane.** Let the hero pane `ignoresSafeArea()` so its background runs to the edges (put the content back inside yourself), and leave the scrolling pane inside the safe area so its first row isn't under the bars.
+4. **Safe areas per pane.** A pane may ignore the safe area *vertically* — there is no neighbouring pane that way — so a hero can still run to the top and bottom edges (put the content back inside yourself). Horizontally it cannot: a background that has to pass under the vertical bar belongs behind the whole arrangement, see [Backgrounds that have to run under the bar](#backgrounds-that-have-to-run-under-the-bar). Leave the scrolling pane inside the safe area so its first row isn't under the bars.
 5. **Re-measure anything computed from width** in the narrower pane: grid column counts, truncation, caps.
 6. **Floors on both panes**, then test flat *and* half-folded.
 

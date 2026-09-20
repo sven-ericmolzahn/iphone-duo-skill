@@ -123,7 +123,7 @@ Apple's guidance is *in general, don't*: the side position is the platform patte
 Controls on one edge make the content area asymmetric.
 
 - **Inset foreground** content with the safe area — most layouts get this free. Centre within the safe area, not the screen. Remember the bar can be on the leading side.
-- **Extend backgrounds** under the bar: a hero image, a map, a colour field. `backgroundExtensionEffect()` (SwiftUI) or `UIBackgroundExtensionView` (UIKit), both iOS 26, mirror and blur imagery outward so there is no hard edge at the bar.
+- **Extend backgrounds** under the bar: a hero image, a map, a colour field. `backgroundExtensionEffect()` (SwiftUI) or `UIBackgroundExtensionView` (UIKit), both iOS 26, mirror and blur imagery outward so there is no hard edge at the bar. The mirror is the catch: on anything already blurred the mirror axis reads as a seam, so a soft backdrop is better drawn behind the layout than extended from within it. Inside an arrangement the modifier belongs on the **pane** — on the image within the pane it does nothing, and a background that must pass the pane's own edge cannot be drawn there at all (`arrangement-views.md`).
 - A mixed approach works well: full-width header or background, scrolling content inset.
 - Put controls near the content they affect. In a split view, actions for the list belong above the list column, not in the trailing bar.
 

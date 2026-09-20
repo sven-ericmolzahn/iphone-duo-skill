@@ -47,7 +47,7 @@ Check afterwards that the phone-width path is pixel-identical: a cap above the p
 - [ ] Custom "more" menus move into `ToolbarOverflowMenu`.
 - [ ] Meaningful text items (Select ⇄ Done, a cart total) are `.horizontalOnly`. Text that only repeats a symbol is dropped in favour of the symbol, with a badge if it carried a count.
 - [ ] Screens that are all about their actions set `.toolbarVerticalCompressionBehavior(.prefersToolbarItems)`.
-- [ ] Hero images and coloured headers run under the bar (`backgroundExtensionEffect()`), rather than stopping at it with a hard edge.
+- [ ] Hero images and coloured headers run under the bar (`backgroundExtensionEffect()`), rather than stopping at it with a hard edge. It mirrors the view's edge outward, so a blurred or soft-edged backdrop shows the mirror axis as a seam and wants a background drawn behind the layout instead. In an arrangement the modifier goes on the pane, never on the image inside it.
 - [ ] Sheets: checked on the outer display; single-button sheets may disable the vertical bar.
 
 ## 4 · Structure (the real work)

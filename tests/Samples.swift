@@ -94,6 +94,43 @@ struct RatioScreen: View {
     }
 }
 
+// MARK: - Arrangement: a full-bleed background behind the panes
+
+@available(iOS 27.1, *)
+struct HeroBesideShelf: View {
+    @State private var heroPaneMinX: CGFloat = 0
+
+    var body: some View {
+        ZStack {
+            // The background is a sibling of the arrangement, not a pane's own.
+            // A pane's trailing edge is the arrangement's, so a background drawn
+            // inside one cannot reach under the vertical bar: ignoring the safe
+            // area there grows the scene over the neighbouring pane instead, and
+            // the content laid out in it moves with it. Nothing clips a sibling.
+            GeometryReader { screen in
+                LinearGradient(colors: [.orange, .clear], startPoint: .top, endPoint: .bottom)
+                    .frame(width: max(screen.size.width - heroPaneMinX, 1))
+                    .offset(x: heroPaneMinX)
+            }
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+
+            ArrangementView {
+                QueueView()
+                    .splitArrangementLayoutSize(minWidth: 360)
+            } secondary: {
+                PlayerView()
+                    // Vertical is safe: there is no neighbouring pane that way.
+                    .ignoresSafeArea(.container, edges: .vertical)
+                    // All the pane has to report is where it begins.
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minX } action: { heroPaneMinX = $0 }
+                    .splitArrangementLayoutSize(minWidth: 300, idealWidth: 330, maxWidth: 440)
+            }
+            .arrangementViewStyle(.split.axes(.horizontal))
+        }
+    }
+}
+
 // MARK: - Arrangement: overlay, and reading the arrangement from inside a pane
 
 @available(iOS 27.1, *)
