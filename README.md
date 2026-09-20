@@ -4,17 +4,18 @@ A skill that teaches coding agents — **Claude Code, OpenAI Codex, Cursor, Gemi
 
 It exists because two days with the 27.1 SDK went like this:
 
-- A blog said `ArrangementView` "isn't in the SDK yet". It is — declared in `SwiftUICore`, where nobody greps.
+- `ArrangementView` is declared in `SwiftUICore`, not `SwiftUI`. `import SwiftUI` re-exports it, so code compiles either way, but grepping one module "proves" it doesn't exist. Search both.
 - A layout preference set on the arrangement compiled, did nothing, and left the split at 50/50. It belongs on the *pane*.
 - Half-folded, one pane collapsed to 145 points with text stacked one character per line. It needed its own `minWidth`.
-- A video summary had the tab-bar compression enum backwards. Apple's prose says `.divisions`; the SDK says `.division`.
-- A camera API from a Tech Talk isn't in the shipping headers at all.
+- The reserved-region kinds are `.division` and `.occlusion`. Prose pluralises them naturally; the enum does not.
+- Vertical compression on iOS defaults to keeping the *tab bar* — toolbar items overflow first.
+- `AVCaptureDeviceDirectionCoordinator` is described in Tech Talk 111465 and absent from the headers of this SDK build.
 
-None of that is in a model's training data, and half of what *is* on the web is wrong. So this skill is built differently.
+These APIs are days old. None of it is in a model's training data, and there is very little to check an assumption against except the SDK itself. So this skill is built differently.
 
 ## What makes it trustworthy
 
-- **Read from the SDK, not from the internet.** Every API name, enum case, module and availability in `references/api-reference.md` came out of the `.swiftinterface` files and headers of Xcode 27.1.
+- **Read from the SDK.** Every API name, enum case, module and availability in `references/api-reference.md` came out of the `.swiftinterface` files and headers of Xcode 27.1.
 - **Every code sample compiles.** `tests/typecheck.sh` type-checks all of them against the installed SDK — under both default actor isolations, because a sample that builds in isolation and fails in a modern project is worthless.
 - **Numbers are measurements.** Display sizes, safe-area insets per pose, the 40-point hinge band, the 84-point vertical bar, what an arrangement does when folded — logged from a running app on the iPhone Duo simulator, with the tool that ships in the skill.
 - **It says what it doesn't know.** Announced-but-missing APIs are marked as such. A modifier that turned out to be a no-op in an A/B test is documented as a no-op.
