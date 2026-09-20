@@ -99,6 +99,7 @@ ArrangementView {
 ## Measured behaviour
 
 Inner display, landscape, content area 867 × 611 points; primary `min 280 / ideal 330 / max 440`.
+Re-runnable with [DuoProbe](https://github.com/sven-ericmolzahn/iphone-duo-probe), which is where the folded figures below come from.
 
 | Configuration | Flat | Half-folded (hinge band x 455.5…495.5) |
 |---|---|---|

@@ -182,6 +182,7 @@ Test matrix — all six, because each has failed independently in practice: oute
 - **Measure, don't eyeball.** Add `.duoLayoutProbe("name")` from `assets/DuoLayoutProbe.swift` and read real sizes, insets, region frames and hinge state from the log. Estimating from screenshots goes wrong quietly: they are `@3x`, often downscaled again by the viewer, and the two displays differ. Several "layout bugs" in the work behind this skill were measurement errors, and several real bugs were invisible until logged.
 - **Mind default actor isolation.** New Xcode project templates set `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`. A plain `struct` you hand to `onGeometryChange(for:)` then gets a main-actor-isolated `Equatable` conformance and the build fails with *"cannot satisfy conformance requirement for a 'Sendable' type parameter"*. Mark such value types `nonisolated` and `Sendable`. The bundled probe already is — it failed in a real app before it was.
 - Re-run `tests/typecheck.sh` from the repository after every Xcode update; it checks every sample under both isolation defaults.
+- Layout *behaviour* claims in this skill were measured with [DuoProbe](https://github.com/sven-ericmolzahn/iphone-duo-probe), a fixture app that renders the same two panes ten ways and prints what each one got. When a claim here looks wrong on your Xcode, re-run it there rather than arguing from a screenshot.
 
 Simulator tooling gaps, log commands and a per-pose checklist: `references/simulator-and-verification.md`.
 
