@@ -2,7 +2,7 @@
 
 A skill that teaches coding agents — **Claude Code, OpenAI Codex, Cursor, Gemini CLI, Copilot** and anything else that reads [Agent Skills](https://agentskills.io) — how to adapt an iOS app for **iPhone Duo**, Apple's folding iPhone: two displays, a hinge, toolbars and tab bars that move to the side, and the iOS 27.1 layout APIs (`ArrangementView`, reserved regions, the hinge API, vertical-bar controls).
 
-It exists because the first week of adapting a real app went like this:
+It exists because two days with the 27.1 SDK went like this:
 
 - A blog said `ArrangementView` "isn't in the SDK yet". It is — declared in `SwiftUICore`, where nobody greps.
 - A layout preference set on the arrangement compiled, did nothing, and left the split at 50/50. It belongs on the *pane*.
