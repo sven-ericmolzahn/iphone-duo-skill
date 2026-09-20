@@ -1,0 +1,20 @@
+name: DuoProbe
+options:
+  bundleIdPrefix: dev.local
+  deploymentTarget: { iOS: "26.0" }
+targets:
+  DuoProbe:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.local.DuoProbe
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES
+        # Deliberately on: the skill warns this breaks naive Equatable probes.
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsMultipleScenes: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
