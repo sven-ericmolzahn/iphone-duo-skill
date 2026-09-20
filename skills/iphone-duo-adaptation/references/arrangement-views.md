@@ -99,18 +99,39 @@ ArrangementView {
 ## Measured behaviour
 
 Inner display, landscape, content area 867 × 611 points; primary `min 280 / ideal 330 / max 440`.
+Re-runnable with [DuoProbe](https://github.com/sven-ericmolzahn/iphone-duo-probe), which is where the folded figures below come from.
 
 | Configuration | Flat | Half-folded (hinge band x 455.5…495.5) |
 |---|---|---|
 | Preference on the *container* (`.splitArrangementLayoutRatio(0.42)`) | 433.5 / 433.5 — ignored | — |
-| Preference on the primary **only** | 330 / 537 ✓ | primary 330, secondary **≈ 145**, both left of the hinge, right half blank ✗ |
-| Primary preference **+ `minWidth: 360` on the secondary** | 330 / 537 ✓ | primary **455.5**, secondary **371.3** — one pane per half, hinge clear ✓ |
+| `min/ideal/max` on the primary **only** | 330 / 537 ✓ | primary 330, secondary **126**, both left of the hinge, right half blank ✗ |
+| Bare `minWidth: 240` on the primary only | 434 / 434 ✓ | primary **456**, secondary **372** ✓ |
+| Primary `min/ideal/max` **+ `minWidth` on the secondary** | 330 / 537 ✓ | primary **456**, secondary **372** — one pane per half, hinge clear ✓ |
+| `minWidth: 400` on the primary (inside the 455.5 half) | ✓ | primary **456**, secondary **372** ✓ |
+| `minWidth: 500` on the primary (beyond the half) | ✓ | **nothing renders** — both panes gone ✗ |
 
-Three things to take from that table:
+Four things to take from that table:
 
-1. The floor on the secondary is what makes folding work. At 145 points a list's heading wrapped to three lines, a stat line stacked one character per row, a search field collapsed to its icon and filter chips to single letters.
-2. The fold **overrides `maxWidth`**: the primary took 455.5 although capped at 440. That is correct behaviour; there is no need to withdraw size preferences when folded.
-3. The re-layout is **live**. In one log the division region went inactive → active and the secondary went 537 → 371 without any code observing the hinge.
+1. **The `idealWidth` is the trigger, not the missing floor.** A primary with only a `minWidth` shared the display correctly even with a floorless secondary. It is when the primary names an ideal width that it takes that width, hands the remainder to the secondary, and the pair ends up inside one half. So the rule is conditional: once a pane declares an ideal, give its partner a floor.
+2. **A floor that cannot fit a half deletes the arrangement.** At `minWidth: 500` against a 455.5-point half, both panes vanished — not primary-only, not clamped, not logged. `400` was fine. The flat container is 867 points wide, so this passes every test until someone folds the device. Budget floors against the half.
+3. The fold **overrides `maxWidth`**: the primary took 456 although capped at 440. That is correct behaviour; there is no need to withdraw size preferences when folded.
+4. The re-layout is **live**. In one log the division region went inactive → active and the panes re-flowed without any code observing the hinge.
+
+## Choosing the container from the device
+
+A recurring suggestion is to branch on whether the device folds — arrangement if it does, `NavigationSplitView` if it does not — so that "on the outer display it behaves like a normal iPhone". Measured on an iPhone Duo (iPhone19,4), it does not.
+
+There is no foldable API: `fold`, `foldable` and `folding` do not occur in the 27.1 UIKit headers or the SwiftUI / SwiftUICore interfaces, so the test is a hard-coded model list, and therefore a **constant**. It stays true while the outer display is showing, so the arrangement applies there too:
+
+| Outer display, closed (content 382 × 584, compact/regular) | Result |
+|---|---|
+| Branch on the device | primary 382 × 292 **stacked above** secondary 382 × 292 |
+| Branch on the display's reserved regions | one column 382 × 574 with a back button |
+
+**The outer display reports no division region at all, even with `.includeInactive`.** That is the honest signal, and it is per display rather than per device. Two caveats before reaching for it:
+
+- It is empty on the **first** geometry evaluation and populated on a later one. A container chosen from `reservedRegions` therefore swaps after the first frame, visibly, on every launch. Choose layout from size classes and container size; use reserved regions to position content.
+- On the Duo the device test is always true, so it changes nothing there — it only swaps in a different container on every *other* iPhone, which means two layouts to maintain for no gain in the pose it was meant to improve.
 
 ## Overlay
 

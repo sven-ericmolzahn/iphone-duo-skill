@@ -105,12 +105,13 @@ NavigationStack {                                   // navigation goes AROUND it
 }
 ```
 
-Four traps, each of which cost a debugging session to find:
+Five traps, each of which cost a debugging session to find:
 
 1. **Size preferences belong on the panes, not on the `ArrangementView`.** `splitArrangementLayoutSize`, `splitArrangementLayoutRatio` and `splitArrangementFixedLayoutSize` are `View` modifiers that a *child* uses to describe itself (like `navigationSplitViewColumnWidth`). On the container they are silently ignored and the split stays 50/50.
-2. **Every pane needs its own `minWidth`.** With a preference on the primary only, the system honoured it and gave the secondary the leftovers. Half-folded, that was 145 points, all on one side of the hinge, with the other half of the screen blank — text wrapping one character per line. Adding a floor to the secondary made both panes snap to the halves of the display.
-3. **`.axes(.horizontal)` shows *only the primary* when the container is taller than wide.** The secondary doesn't stack underneath; it disappears. Either allow both axes (`.split`), or enter the arrangement only when the container is wider than tall and wide enough for both floors — and keep a single-column fallback. Require **regular *vertical* size class too**: a Plus/Max iPhone in landscape is regular width but compact height, and without that check it silently switches to your new two-pane layout on a 440-point-tall screen you never designed for.
-4. **Don't put an `ArrangementView` inside a `ScrollView`, `List` or `NavigationSplitView`, and don't put navigation containers inside it.** Arrangements do layout, not navigation.
+2. **Once a pane names an `idealWidth`, its partner needs a `minWidth`.** A primary carrying `min 280 / ideal 330 / max 440` opposite a floorless secondary took its ideal 330 and left the secondary 126 — and the two together fitted inside the *leading* half, leaving the 371.5-point trailing half blank. Text wrapped one character per line. A bare `minWidth` on the primary alone was measured as harmless, so the missing floor is only half the cause; the ideal width is the trigger. Giving the secondary a floor restored one pane per half.
+3. **A `minWidth` that cannot fit a half deletes the whole arrangement.** Half-folded, a primary floor of 500 against a 455.5-point half rendered *nothing*: no panes, no primary-only fallback, no diagnostic. 400 was fine. The container is 867 points wide, so the layout looks correct flat and goes blank the moment someone folds the device — budget every floor against the **half**, not the display.
+4. **`.axes(.horizontal)` shows *only the primary* when the container is taller than wide.** The secondary doesn't stack underneath; it disappears. Either allow both axes (`.split`), or enter the arrangement only when the container is wider than tall and wide enough for both floors — and keep a single-column fallback. Require **regular *vertical* size class too**: a Plus/Max iPhone in landscape is regular width but compact height, and without that check it silently switches to your new two-pane layout on a 440-point-tall screen you never designed for.
+5. **Don't put an `ArrangementView` inside a `ScrollView`, `List` or `NavigationSplitView`, and don't put navigation containers inside it.** Arrangements do layout, not navigation.
 
 Two things that are *not* problems, so don't engineer around them: the fold overrides `maxWidth` (a pane capped at 440 took the full 455.5-point half), and the arrangement re-lays out live as the hinge moves — no observer needed.
 
@@ -160,6 +161,7 @@ Two kinds: `.division` (the fold — *active only while partially folded*, zero 
 |---|---|---|
 | `UIScreen.main.bounds` / `.scale` | Two screens; deprecated | Container bounds; `view.window?.windowScene?.screen`; `traitCollection.displayScale` |
 | `if UIDevice.current.userInterfaceIdiom == .pad` | Inner display is regular width on a phone | `horizontalSizeClass`, measured width |
+| A model check — "is this device foldable?" — to choose a container | There is no such API, so it is a hard-coded model list, and it is **constant**: still true while the *outer* display is showing, where an arrangement then stacks two panes into a phone-sized screen | Ask the display, not the device: `reservedRegions(kind: .division, options: .includeInactive)` is empty on the outer display. Better still, ask neither — size classes already distinguish them |
 | Orientation checks for layout | Not size; inner display ignores supported orientations | Size class or container aspect ratio |
 | `safeAreaInsets.top ?? 59` | One phone's status bar, frozen into layout | Fall back to `0`; measure |
 | `if inset > 0 { use(inset) }` | Bakes in "there is always a top inset"; keeps stale values | Accept the measurement; bound it some other way |
@@ -180,6 +182,7 @@ Test matrix — all six, because each has failed independently in practice: oute
 - **Measure, don't eyeball.** Add `.duoLayoutProbe("name")` from `assets/DuoLayoutProbe.swift` and read real sizes, insets, region frames and hinge state from the log. Estimating from screenshots goes wrong quietly: they are `@3x`, often downscaled again by the viewer, and the two displays differ. Several "layout bugs" in the work behind this skill were measurement errors, and several real bugs were invisible until logged.
 - **Mind default actor isolation.** New Xcode project templates set `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`. A plain `struct` you hand to `onGeometryChange(for:)` then gets a main-actor-isolated `Equatable` conformance and the build fails with *"cannot satisfy conformance requirement for a 'Sendable' type parameter"*. Mark such value types `nonisolated` and `Sendable`. The bundled probe already is — it failed in a real app before it was.
 - Re-run `tests/typecheck.sh` from the repository after every Xcode update; it checks every sample under both isolation defaults.
+- Layout *behaviour* claims in this skill were measured with [DuoProbe](https://github.com/sven-ericmolzahn/iphone-duo-probe), a fixture app that renders the same two panes ten ways and prints what each one got. When a claim here looks wrong on your Xcode, re-run it there rather than arguing from a screenshot.
 
 Simulator tooling gaps, log commands and a per-pose checklist: `references/simulator-and-verification.md`.
 

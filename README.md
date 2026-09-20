@@ -111,6 +111,8 @@ These APIs shipped as beta. After every Xcode update:
 tests/typecheck.sh && python3 tests/validate-skill.py && skills/iphone-duo-adaptation/scripts/check-sdk.sh
 ```
 
+Behaviour, as opposed to spelling, is checked with [DuoProbe](https://github.com/sven-ericmolzahn/iphone-duo-probe) — a fixture app that lays the same two panes out ten ways and prints the measurements, so a claim about what the fold does can be re-run instead of believed.
+
 If something fails, the SDK is right and the skill is wrong — fix the sample, then the prose. Pull requests that add *measured* facts (hardware numbers instead of simulator numbers, the outer display in landscape, Split View insets) are especially welcome; please say how you measured.
 
 ## Not affiliated with Apple
