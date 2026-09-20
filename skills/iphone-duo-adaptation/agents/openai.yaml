@@ -1,0 +1,8 @@
+# Optional UI metadata for OpenAI Codex. Other agents ignore this file.
+interface:
+  display_name: "iPhone Duo adaptation"
+  short_description: "Adapt SwiftUI and UIKit apps for Apple's folding iPhone — verified APIs, measured metrics, audit scripts."
+  default_prompt: "Audit this app for iPhone Duo and fix what breaks, cheapest and most visible problems first. Verify API names against the installed SDK before writing code."
+
+policy:
+  allow_implicit_invocation: true
