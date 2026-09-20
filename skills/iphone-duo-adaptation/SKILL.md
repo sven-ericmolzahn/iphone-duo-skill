@@ -31,13 +31,13 @@ Apple's position is the spine of this skill: **adapt to size classes and contain
 
 ## Ground truth first
 
-These APIs were in beta when this was written, and secondary sources get them wrong: blog posts invent spellings, video summaries swap enum cases, and even Apple's prose says `.divisions` where the SDK says `.division`. A wrong name costs a build cycle; a wrong mental model costs an afternoon. So before writing code:
+These APIs were days old when this was written, so there is little to check a spelling against except the SDK itself. The traps survive a plausibility check: the reserved-region kinds are singular (`.division`, `.occlusion`) where prose pluralises them naturally, and a name that compiles can still be the wrong one. A wrong name costs a build cycle; a wrong mental model costs an afternoon. So before writing code:
 
 ```bash
 scripts/check-sdk.sh        # which Duo APIs does the installed SDK really have, and in which module?
 ```
 
-One result surprises everyone once: SwiftUI's layout APIs (`ArrangementView`, `reservedRegions`, `onHingeChange` …) are declared in **SwiftUICore**, not SwiftUI. `import SwiftUI` re-exports them, so code compiles — but grepping `SwiftUI.swiftinterface` alone "proves" they don't exist. Search both. When a symbol is reported missing, don't code against it; at the time of writing that was `AVCaptureDeviceDirectionCoordinator`, announced in a Tech Talk and absent from the headers.
+One result surprises everyone once: SwiftUI's layout APIs (`ArrangementView`, `reservedRegions`, `onHingeChange` …) are declared in **SwiftUICore**, not SwiftUI. `import SwiftUI` re-exports them, so code compiles — but grepping `SwiftUI.swiftinterface` alone "proves" they don't exist. Search both. When a symbol is reported missing, don't code against it; at the time of writing that was `AVCaptureDeviceDirectionCoordinator`, described in Tech Talk 111465 and absent from the headers.
 
 If you can't run scripts, trust `references/api-reference.md` (every entry was read from the SDK and compile-checked) over anything remembered or searched.
 
