@@ -51,6 +51,15 @@ So give every item both: `Button("Compose", systemImage: "square.and.pencil") { 
 
 Mixed text-and-symbol items (an inbox icon with "7") become symbol-only with a badge: `.badge(7)` / `item.badge = .count(7)`. Ask whether the text merely reinforces the symbol (drop it) or carries information on its own, like a cart total (keep the item horizontal).
 
+**A badge whose count arrives late did not show in a vertical bar.** Measured on the inner display in landscape and on the outer display: a toolbar `Button(…).badge(count)` whose count loaded after the item was first shown kept an empty badge in the vertical bar, while horizontal bars showed it. Changing the symbol together with the count made the bar rebuild the item, and the badge appeared (A/B: without the symbol change, still no badge after 25 seconds):
+
+```swift
+Button("Notifications", systemImage: unread > 0 ? "bell.badge.fill" : "bell.fill") { }
+    .badge(min(unread, 99))
+```
+
+That covers 0 → n. A change from 3 to 2 keeps the symbol and was not tested; check it before relying on the badge for changing counts. Leave a comment on the symbol swap: it looks redundant next to the badge, and removing it silently drops the count on the Duo.
+
 ## Order on the vertical axis
 
 Top to bottom: **primary navigation** (Back, Close) → **prominent actions** (Done) → everything else in its groups; bottom-bar items sit at the bottom, above the tab bar. The system adds Back itself.

@@ -1,6 +1,6 @@
 # Running, capturing and verifying on the simulator
 
-**Contents:** [Setup](#setup) · [The pose matrix](#the-pose-matrix) · [Capturing both displays](#capturing-both-displays) · [Measuring instead of eyeballing](#measuring-instead-of-eyeballing) · [Tooling gaps](#tooling-gaps-as-of-xcode-271-27a9269) · [For agents without screen control](#for-agents-without-screen-control) · [UI tests](#ui-tests)
+**Contents:** [Setup](#setup) · [The pose matrix](#the-pose-matrix) · [Capturing both displays](#capturing-both-displays) · [Measuring instead of eyeballing](#measuring-instead-of-eyeballing) · [Tooling gaps](#tooling-gaps-as-of-xcode-271-27a9269) · [For agents with screen control](#for-agents-with-screen-control) · [For agents without screen control](#for-agents-without-screen-control) · [UI tests](#ui-tests)
 
 ## Setup
 
@@ -77,6 +77,17 @@ Observed, not documented; expect them to change.
 - **`SimulatorKit.framework` moved** to `Xcode.app/Contents/SharedFrameworks/`. Automation tools that load it from `Contents/Developer/Library/PrivateFrameworks/` fail with "Failed to load essential private frameworks" until they are updated.
 - **Restarting `CoreSimulatorService`** (a common fix for dead simulator input) shuts the device down; it boots again *closed*, so the pose you were testing is lost.
 - Apps built against an older deployment target than the simulator runtime's minimum simply refuse to install on older-runtime iPads — if you verify a wide layout on an iPad instead, pick one whose runtime is ≥ the app's deployment target.
+- **`xcrun simctl pbcopy` did not reach the app.** Pasting into a text field after `pbcopy` pasted nothing. Type the text instead.
+
+## For agents with screen control
+
+With a tool that drives macOS apps you can set the poses yourself, and tap the inner display:
+
+- Device Hub's pose controls are accessibility buttons: **Closed**, **Book**, **Open** and **Rotate Right**, next to Home, Screenshot and Record. Press them by accessibility rather than by coordinate.
+- Clicks and drags on the device in the Device Hub window reach whichever display is live, **including the inner display**, where `simctl` touch injection is dropped (above). That is how to tap through a flow on the inner display.
+- The device image moves, rotates and changes size with every pose. Take a fresh screenshot of the window before computing a coordinate, and convert through the display's rectangle in that screenshot.
+- A drag that starts a few points above the display's bottom edge is the **home gesture**: the app went to the home screen. Start scroll drags well inside the content.
+- Let a scroll settle before tapping. A tap during the deceleration landed on whichever row had scrolled under the pointer.
 
 ## For agents without screen control
 

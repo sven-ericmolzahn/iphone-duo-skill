@@ -46,6 +46,7 @@ Check afterwards that the phone-width path is pixel-identical: a cap above the p
 - [ ] `visibilityPriority` marks what must stay visible: the most-used action and anything showing status.
 - [ ] Custom "more" menus move into `ToolbarOverflowMenu`.
 - [ ] Meaningful text items (Select ⇄ Done, a cart total) are `.horizontalOnly`. Text that only repeats a symbol is dropped in favour of the symbol, with a badge if it carried a count.
+- [ ] A badge whose count loads after the item appears changes the item's symbol with it (`bell.fill` → `bell.badge.fill`); in a vertical bar the badge alone did not update.
 - [ ] Screens that are all about their actions set `.toolbarVerticalCompressionBehavior(.prefersToolbarItems)`.
 - [ ] Hero images and coloured headers run under the bar (`backgroundExtensionEffect()`), rather than stopping at it with a hard edge. It mirrors the view's edge outward, so a blurred or soft-edged backdrop shows the mirror axis as a seam and wants a background drawn behind the layout instead. In an arrangement the modifier goes on the pane, never on the image inside it.
 - [ ] Sheets: checked on the outer display; single-button sheets may disable the vertical bar.
@@ -54,7 +55,10 @@ Check afterwards that the phone-width path is pixel-identical: a cap above the p
 
 For each top-level screen on a regular-width, wide container, ask Apple's question: *is this a centred phone layout on a display that is now wide?*
 
-- [ ] List → detail flows use `NavigationSplitView` / `UISplitViewController` and show both levels on the inner display.
+- [ ] List → detail flows use `NavigationSplitView` / `UISplitViewController` and show both levels on the inner display in landscape. In portrait they fall back to a stack: there `NavigationSplitView` hides the list or lays it over the detail (`split-views.md`).
+- [ ] No `navigationSplitViewColumnWidth` on the list column — with one, the columns stop snapping to the fold.
+- [ ] A detail column whose screens push a second level has a stack bound to a path, emptied when the selection changes; otherwise the pushed screen outlives the selection.
+- [ ] Features that open in sheets from a dashboard were considered as a hub: the dashboard as the list, the feature beside it. Screens that are both sheet and detail own a `NavigationStack` (and a Close button) only as a sheet.
 - [ ] Two-peer screens use `ArrangementView` with `.split`; layered screens use `.overlay`. See `arrangement-views.md`.
 - [ ] Every pane has its own minimum size. The arrangement is entered only when the container can satisfy both.
 - [ ] The single-column path is still there, unchanged, for compact width and tall containers.
