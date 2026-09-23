@@ -74,6 +74,10 @@ rule MEDIUM "Fixed widths" \
   "Sizes tied to one screen. Size relative to the container; cap readable content with a maxWidth rather than fixing it." \
   '\.frame\([[:space:]]*width:[[:space:]]*[0-9]{3,}|widthAnchor\.constraint\(equalToConstant:[[:space:]]*[0-9]{3,}'
 
+rule MEDIUM "Fixed split-view column width" \
+  "With an explicit column width, NavigationSplitView stopped snapping its columns to the halves of a half-folded Duo, and the detail ran onto the fold. Leave the widths at their defaults; give narrow rows a narrow form instead." \
+  'navigationSplitViewColumnWidth\('
+
 rule MEDIUM "Fixed camera pick" \
   "iPhone Duo has an outer and an inner front camera and the usable set changes as the device opens and closes — which is not a scenePhase change. Discover devices, follow the fold, adopt RotationCoordinator." \
   'AVCaptureDevice\.default\('

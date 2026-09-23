@@ -82,7 +82,7 @@ The outer display is *wider and shorter* than any other iPhone (an iPhone 17 Pro
 
 | The screen has… | Use | Because |
 |---|---|---|
-| List → detail (selection drives the other pane) | `NavigationSplitView` / `UISplitViewController` | It's navigation. Collapses on the outer display, expands on the inner, adapts to the fold by itself. |
+| List → detail (selection drives the other pane) | `NavigationSplitView` / `UISplitViewController` | It's navigation. Collapses on the outer display and snaps its columns to the fold by itself. Two columns on the inner display **in landscape only**: in portrait it hides the list or lays it over the detail, so enter it on the same condition as an arrangement (`references/split-views.md`). |
 | Two peers that are both always relevant (player + queue, hero + shelf, map + results) | `ArrangementView` with `.split` | Side by side when wide, stacked when tall, and snaps the panes to the two halves when folded. |
 | A foreground layered over a background (controls over a page, shutter over a viewfinder) | `ArrangementView` with `.overlay` | Layered when flat; when partially folded the two move to opposite sides of the hinge. |
 | One scrolling column | Nothing new — cap its width | A feed or article scrolls through the fold; scrolling content is exempt from fold avoidance. |
@@ -105,7 +105,7 @@ NavigationStack {                                   // navigation goes AROUND it
 }
 ```
 
-Six traps, each of which cost a debugging session to find:
+Seven traps, each of which cost a debugging session to find:
 
 1. **Size preferences belong on the panes, not on the `ArrangementView`.** `splitArrangementLayoutSize`, `splitArrangementLayoutRatio` and `splitArrangementFixedLayoutSize` are `View` modifiers that a *child* uses to describe itself (like `navigationSplitViewColumnWidth`). On the container they are silently ignored and the split stays 50/50.
 2. **Once a pane names an `idealWidth`, its partner needs a `minWidth`.** A primary carrying `min 280 / ideal 330 / max 440` opposite a floorless secondary took its ideal 330 and left the secondary 126 — and the two together fitted inside the *leading* half, leaving the 371.5-point trailing half blank. Text wrapped one character per line. A bare `minWidth` on the primary alone was measured as harmless, so the missing floor is only half the cause; the ideal width is the trigger. Giving the secondary a floor restored one pane per half.
@@ -113,6 +113,7 @@ Six traps, each of which cost a debugging session to find:
 4. **`.axes(.horizontal)` shows *only the primary* when the container is taller than wide.** The secondary doesn't stack underneath; it disappears. Either allow both axes (`.split`), or enter the arrangement only when the container is wider than tall and wide enough for both floors — and keep a single-column fallback. Require **regular *vertical* size class too**: a Plus/Max iPhone in landscape is regular width but compact height, and without that check it silently switches to your new two-pane layout on a 440-point-tall screen you never designed for.
 5. **Don't put an `ArrangementView` inside a `ScrollView`, `List` or `NavigationSplitView`, and don't put navigation containers inside it.** Arrangements do layout, not navigation.
 6. **A full-bleed background can't be drawn inside a pane.** A pane's trailing edge is the *arrangement's* edge, not the screen's, and a pane sitting inside the safe area has no trailing inset to tell it the bar is there. Ignoring the safe area horizontally doesn't reach towards the screen edge — it grows the scene over the *neighbouring* pane, and everything laid out inside moves with it (measured: a 330-point hero pane ending at x = 867 with the bar at 867…951, and the first ~20 points of every line of text sheared off at a hard vertical line). `.offset(x:)` to push it back takes the same width off the other side. Draw the background as a plain sibling *behind* the whole `ArrangementView` and let the pane report where it begins — nothing clips a `ZStack` sibling.
+7. **A `.fill` image can't be a pane by itself.** As a pane's content, `Image(…).resizable().aspectRatio(contentMode: .fill)` sized the pane from the image and overflowed it. Put the image in an overlay of something flexible (`Color.clear.overlay { image }.clipped()`) so the pane decides the size.
 
 Two things that are *not* problems, so don't engineer around them: the fold overrides `maxWidth` (a pane capped at 440 took the full 455.5-point half), and the arrangement re-lays out live as the hinge moves — no observer needed.
 
@@ -138,6 +139,7 @@ Prefer point sizes to ratios when a pane holds something of fixed physical size;
 - Items overflow bottom-to-top by default. Use `visibilityPriority` to keep the frequently used action (Compose, New Note) and anything carrying status (badges) visible longest.
 - When space runs out, choose what survives: `toolbarVerticalCompressionBehavior(.prefersTabBar)` keeps the tab bar and overflows toolbar items (the iOS default — right for navigation-focused apps); `.prefersToolbarItems` keeps the actions and minimises the tab bar (right for task-focused screens).
 - Opt out with `toolbarVerticalBehavior(.disabled)` only for full-width, bottom-heavy, non-scrolling UI (a calculator) or a sheet whose only control is Close.
+- A `.badge` whose count arrives after the item is shown did not update in a vertical bar. Change the symbol with the count (`bell.fill` → `bell.badge.fill`) so the bar rebuilds the item.
 - Custom toolbar views read `@Environment(\.toolbarVerticalEdge)` (`.leading`, `.trailing`, or `nil` for horizontal bars) and switch to a fixed-width, symbol-only form. It can be `.leading`: in Split View multitasking each app's bar sits on its *outer* edge.
 
 Where bars are and aren't vertical (sheets, inspectors, split-view columns), UIKit spellings, tab-bar sidebar placement, and one measured nuance about `.principal` items: `references/vertical-bars.md`.
@@ -178,7 +180,7 @@ Two kinds: `.division` (the fold — *active only while partially folded*, zero 
 
 Test matrix — all six, because each has failed independently in practice: outer display portrait · outer landscape · inner portrait · inner landscape flat · inner landscape **half-folded** · inner portrait half-folded. Then Split View multitasking on the inner display (bar on the leading edge for the left-hand app).
 
-- Poses are changed in **Device Hub** (it replaces Simulator.app in Xcode 27.1). There is no `simctl` command and no XCTest API for folding; `XCUIDevice` can rotate only. If you are an agent without screen control, ask the user to set the pose, then measure.
+- Poses are changed in **Device Hub** (it replaces Simulator.app in Xcode 27.1). There is no `simctl` command and no XCTest API for folding; `XCUIDevice` can rotate only. If you are an agent without screen control, ask the user to set the pose, then measure. With screen control, press Device Hub's **Closed / Book / Open / Rotate Right** buttons yourself; clicks on its device window also reach the inner display, which `simctl` touch injection does not.
 - `scripts/capture-displays.sh` screenshots both displays by id. A plain `simctl io … screenshot` often grabs the display that is switched off — a black image that looks like a crash.
 - **Measure, don't eyeball.** Add `.duoLayoutProbe("name")` from `assets/DuoLayoutProbe.swift` and read real sizes, insets, region frames and hinge state from the log. Estimating from screenshots goes wrong quietly: they are `@3x`, often downscaled again by the viewer, and the two displays differ. Several "layout bugs" in the work behind this skill were measurement errors, and several real bugs were invisible until logged.
 - **Mind default actor isolation.** New Xcode project templates set `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`. A plain `struct` you hand to `onGeometryChange(for:)` then gets a main-actor-isolated `Equatable` conformance and the build fails with *"cannot satisfy conformance requirement for a 'Sendable' type parameter"*. Mark such value types `nonisolated` and `Sendable`. The bundled probe already is — it failed in a real app before it was.
@@ -195,6 +197,7 @@ Read only what the task needs.
 |---|---|
 | `references/api-reference.md` | You need an exact spelling, module, availability or enum case — SwiftUI, UIKit, AVFoundation |
 | `references/arrangement-views.md` | Building or debugging a two-pane or layered layout |
+| `references/split-views.md` | List → detail on the Duo, turning sheets into a hub, pushing inside a detail column |
 | `references/vertical-bars.md` | Toolbar, tab bar, sheet or navigation-bar work |
 | `references/reserved-regions-and-hinge.md` | Positioning custom content around the fold or cameras; hinge-driven effects |
 | `references/camera-and-scenes.md` | Capture sessions, the second display as a camera accessory, multiple windows |

@@ -43,14 +43,13 @@ struct PlayerScreen: View {
 struct LibraryScreen: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
-    @State private var viewport: CGSize = .zero
 
     private static let primaryMin: CGFloat = 280
     private static let secondaryMin: CGFloat = 360
 
     /// Regular in BOTH size classes (a Max iPhone in landscape is regular
     /// width, compact height), wider than tall, and wide enough for both floors.
-    private var usesPanes: Bool {
+    private func usesPanes(in viewport: CGSize) -> Bool {
         horizontalSizeClass == .regular
             && verticalSizeClass == .regular
             && viewport.width > viewport.height
@@ -58,10 +57,10 @@ struct LibraryScreen: View {
     }
 
     var body: some View {
-        ZStack {
-            Color.clear
-                .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
-            if #available(iOS 27.1, *), usesPanes {
+        // Decided in the pass that lays it out; a size measured into @State
+        // starts at .zero, so its first evaluation always takes the fallback.
+        GeometryReader { proxy in
+            if #available(iOS 27.1, *), usesPanes(in: proxy.size) {
                 ArrangementView {
                     PlayerView()
                         .splitArrangementLayoutSize(minWidth: Self.primaryMin, idealWidth: 330, maxWidth: 440)
@@ -74,6 +73,26 @@ struct LibraryScreen: View {
                 ScrollView { VStack { PlayerView().frame(height: 300); QueueView().frame(height: 600) } }
             }
         }
+    }
+}
+
+// MARK: - Arrangement: a filling image as a pane
+
+@available(iOS 27.1, *)
+struct CoverBesideForm: View {
+    var body: some View {
+        ArrangementView {
+            // The image in an overlay of a flexible view: as the pane itself,
+            // a .fill image sized the pane from the image and overflowed it.
+            Color.clear
+                .overlay { Image(systemName: "photo").resizable().scaledToFill() }
+                .clipped()
+                .splitArrangementLayoutSize(minWidth: 320)
+        } secondary: {
+            Form { Text("Names") }
+                .splitArrangementLayoutSize(minWidth: 340)
+        }
+        .arrangementViewStyle(.split.axes(.horizontal))
     }
 }
 
@@ -329,6 +348,24 @@ struct InboxToolbar: View {
     }
 }
 
+/// A count that arrives after the item is shown: in a vertical bar the badge
+/// alone did not update; changing the symbol with it makes the bar rebuild it.
+@available(iOS 26.0, *)
+struct NotificationsToolbar: View {
+    let unread: Int
+
+    var body: some View {
+        NavigationStack {
+            QueueView().toolbar {
+                ToolbarItem {
+                    Button("Notifications", systemImage: unread > 0 ? "bell.badge.fill" : "bell.fill") { }
+                        .badge(min(unread, 99))
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Backgrounds under a vertical bar, and sheets
 
 struct HeroHeader: View {
@@ -399,5 +436,100 @@ struct TeleprompterCamera: View {
                         .disabled(!isAvailable)
                 }
             }
+    }
+}
+
+// MARK: - List → detail: two columns only where the list stays beside the detail
+
+struct ListDetailSplit<ListContent: View, DetailContent: View>: View {
+    @Binding var showsDetail: Bool                      // set together with the selection
+    @ViewBuilder var list: () -> ListContent
+    @ViewBuilder var detail: () -> DetailContent
+
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @State private var isWiderThanTall = false
+
+    var body: some View {
+        Group {
+            if horizontalSizeClass == .regular, verticalSizeClass == .regular, isWiderThanTall {
+                NavigationSplitView(columnVisibility: .constant(.all)) {
+                    list().toolbar(removing: .sidebarToggle)
+                } detail: {
+                    detail()
+                }
+                .navigationSplitViewStyle(.balanced)
+            } else {
+                NavigationStack {
+                    list().navigationDestination(isPresented: $showsDetail) { detail() }
+                }
+            }
+        }
+        .onGeometryChange(for: Bool.self) { $0.size.width > $0.size.height } action: { isWiderThanTall = $0 }
+    }
+}
+
+// MARK: - List → detail: pushing inside the detail column
+
+enum HubDestination: Hashable { case photos, notes }
+enum PhotoRoute: Hashable { case review }
+
+struct NotesScreen: View { var body: some View { Text("notes") } }
+struct ReviewScreen: View { var body: some View { Text("review") } }
+
+extension EnvironmentValues {
+    /// Set by a host whose stack is bound to a path it resets
+    @Entry var pushesByValue = false
+}
+
+struct Hub: View {
+    @State private var selection: HubDestination? = .photos
+    @State private var detailPath = NavigationPath()
+
+    var body: some View {
+        NavigationSplitView(columnVisibility: .constant(.all)) {
+            List(selection: $selection) {
+                Text("Photos").tag(HubDestination.photos)
+                Text("Notes").tag(HubDestination.notes)
+            }
+        } detail: {
+            NavigationStack(path: $detailPath) {
+                switch selection {
+                case .photos: PhotosScreen()
+                case .notes: NotesScreen()
+                case nil: Text("Select a section")
+                }
+            }
+            .environment(\.pushesByValue, true)
+        }
+        .onChange(of: selection) { detailPath = NavigationPath() }
+    }
+}
+
+struct PhotosScreen: View {
+    @Environment(\.pushesByValue) private var pushesByValue
+
+    var body: some View {
+        let list = List {
+            if pushesByValue {
+                NavigationLink("Review", value: PhotoRoute.review)
+            } else {
+                NavigationLink("Review") { ReviewScreen() }
+            }
+        }
+        if pushesByValue {
+            list.navigationDestination(for: PhotoRoute.self) { _ in ReviewScreen() }
+        } else {
+            list
+        }
+    }
+}
+
+extension View {
+    /// Its own stack only when presented alone (a sheet); inside a hub a
+    /// second stack would nest.
+    @ViewBuilder
+    func inOwnNavigationStack(_ ownsNavigation: Bool) -> some View {
+        if ownsNavigation { NavigationStack { self } } else { self }
     }
 }

@@ -76,6 +76,7 @@ skills/iphone-duo-adaptation/
 ├── references/                   loaded only when the task needs them
 │   ├── api-reference.md          SwiftUI · UIKit · AVFoundation, exact spellings
 │   ├── arrangement-views.md      split / overlay, pane sizing, measured behaviour
+│   ├── split-views.md            list → detail on the Duo, hubs, pushes in a detail column
 │   ├── vertical-bars.md          toolbars, tab bars, sheets at the side
 │   ├── reserved-regions-and-hinge.md
 │   ├── camera-and-scenes.md

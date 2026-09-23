@@ -20,7 +20,7 @@ NavigationStack            ← navigation, outside
 | Two peers, neither may be covered (player + queue, podcast + transcript, hero + shelf) | `.split` | side by side | stacked | one pane per half |
 | Foreground over background (reading controls over a page, shutter over a viewfinder) | `.overlay` | primary layered over secondary | same | the two move to opposite sides of the fold |
 
-Existing code is the best hint: two real panes in an `HStack`/`VStack` want `.split`; content-plus-controls in a `ZStack` wants `.overlay`. If selection in one pane *drives* the other, that is navigation — use `NavigationSplitView` instead.
+Existing code is the best hint: two real panes in an `HStack`/`VStack` want `.split`; content-plus-controls in a `ZStack` wants `.overlay`. If selection in one pane *drives* the other, that is navigation — use `NavigationSplitView` instead, entered on the same condition as below (`split-views.md`).
 
 ## Split
 
@@ -48,7 +48,7 @@ struct PlayerScreen: View {
 A robust entry condition for a horizontal-only, two-pane screen:
 
 ```swift
-private var usesPanes: Bool {
+private func usesPanes(in viewport: CGSize) -> Bool {
     horizontalSizeClass == .regular                                  // Apple's axis: size class
         && verticalSizeClass == .regular                             // not a Max iPhone in landscape
         && viewport.width > viewport.height                          // the split's own rule
@@ -56,9 +56,8 @@ private var usesPanes: Bool {
 }
 
 var body: some View {
-    ZStack {
-        Color.clear.onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
-        if #available(iOS 27.1, *), usesPanes {
+    GeometryReader { proxy in
+        if #available(iOS 27.1, *), usesPanes(in: proxy.size) {
             ArrangementView { … } secondary: { … }
                 .arrangementViewStyle(.split.axes(.horizontal))
         } else {
@@ -67,6 +66,8 @@ var body: some View {
     }
 }
 ```
+
+Read the size inside a `GeometryReader`, not into `@State` through `onGeometryChange`. A measured `@State` starts at `.zero`, so the first evaluation always takes the single-column branch and the measurement then swaps the layout. The `GeometryReader` decides in the same pass that lays the screen out.
 
 `if #available(iOS 27.1, *), usesPanes` is valid Swift. On iPhone Duo this condition is true for the inner display in landscape (flat or folded) and false for the outer display and for the inner display in portrait. It is also true on an iPad in landscape — usually what you want, but a behaviour change worth telling the user about.
 
@@ -239,6 +240,7 @@ From a single scrolling column with a hero on top (the most common phone layout)
 1. **Extract** the hero and the rest into two functions/properties that both layouts can call. The single-column path must stay byte-for-byte what it was — verify that on a phone-width display before going further.
 2. **Add the entry condition** above and an `ArrangementView` behind `#available`.
 3. **Give the hero a "pane" mode.** What changes in a pane as tall as the screen:
+   - don't make a `.fill` image the pane itself. As a pane's content, `Image(…).resizable().aspectRatio(contentMode: .fill)` sized the pane from the image and ran past the pane's edges. Put it in an overlay of something flexible, `Color.clear.overlay { image }.clipped()`, so the pane decides the size and the image fills it;
    - drop any height cap that was a percentage of the viewport;
    - *centre* the content vertically — hung from the top it leaves the same empty stretch the hero was meant to avoid, just rotated;
    - let the key visual grow with the pane, within a cap;
