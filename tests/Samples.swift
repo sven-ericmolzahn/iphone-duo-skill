@@ -460,6 +460,9 @@ struct ListDetailSplit<ListContent: View, DetailContent: View>: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var isWiderThanTall = false
+    @State private var isOnScreen = false
+    @State private var rebuildsOnAppear = false
+    @State private var buildID = 0
 
     private var showsBothColumns: Bool {
         horizontalSizeClass == .regular && verticalSizeClass == .regular && isWiderThanTall
@@ -482,10 +485,14 @@ struct ListDetailSplit<ListContent: View, DetailContent: View>: View {
         }
         .navigationSplitViewStyle(.balanced)
         .environment(\.horizontalSizeClass, showsBothColumns ? horizontalSizeClass : .compact)
+        .id(buildID)
         .onGeometryChange(for: Bool.self) { $0.size.width > $0.size.height } action: { isWiderThanTall = $0 }
-        // Folding collapses the split in UIKit; push the open detail again
+        // Hidden (another tab on screen): rebuild on appear, or UIKit leaves
+        // the list's toolbar item in the shared vertical bar. On screen:
+        // folding collapses the split in UIKit; push the open detail again
         // so it gets its back button
         .onChange(of: horizontalSizeClass) { old, new in
+            guard isOnScreen else { rebuildsOnAppear = true; return }
             guard old == .regular, new == .compact, showsDetail else { return }
             showsDetail = false
             Task { @MainActor in
@@ -493,6 +500,11 @@ struct ListDetailSplit<ListContent: View, DetailContent: View>: View {
                 showsDetail = true
             }
         }
+        .onAppear {
+            isOnScreen = true
+            if rebuildsOnAppear { rebuildsOnAppear = false; buildID += 1 }
+        }
+        .onDisappear { isOnScreen = false }
     }
 }
 

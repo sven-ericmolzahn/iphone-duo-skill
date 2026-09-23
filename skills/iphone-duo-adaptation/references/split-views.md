@@ -36,6 +36,9 @@ struct ListDetailSplit<ListContent: View, DetailContent: View>: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var isWiderThanTall = false
+    @State private var isOnScreen = false
+    @State private var rebuildsOnAppear = false
+    @State private var buildID = 0
 
     private var showsBothColumns: Bool {
         horizontalSizeClass == .regular && verticalSizeClass == .regular && isWiderThanTall
@@ -58,9 +61,11 @@ struct ListDetailSplit<ListContent: View, DetailContent: View>: View {
         }
         .navigationSplitViewStyle(.balanced)
         .environment(\.horizontalSizeClass, showsBothColumns ? horizontalSizeClass : .compact)
+        .id(buildID)                                     // rebuilt on appear, see below
         .onGeometryChange(for: Bool.self) { $0.size.width > $0.size.height } action: { isWiderThanTall = $0 }
-        // Folding: see below
+        // Folding and hidden tabs: see below
         .onChange(of: horizontalSizeClass) { old, new in
+            guard isOnScreen else { rebuildsOnAppear = true; return }
             guard old == .regular, new == .compact, showsDetail else { return }
             showsDetail = false
             Task { @MainActor in
@@ -68,16 +73,22 @@ struct ListDetailSplit<ListContent: View, DetailContent: View>: View {
                 showsDetail = true
             }
         }
+        .onAppear {
+            isOnScreen = true
+            if rebuildsOnAppear { rebuildsOnAppear = false; buildID += 1 }
+        }
+        .onDisappear { isOnScreen = false }
     }
 }
 ```
 
 Measured with this container on the Duo: an edit sheet with an unsaved change survived rotating both ways and folding; a full-screen photo viewer opened from the detail survived unfolding, the book pose and folding, still on the same photo; scroll positions survived. On an iPhone 17 Pro (iOS 27.0) it was a plain stack: large title, search on pull-down, push, back button, edge swipe back.
 
-Three things the single container needed:
+Four things the single container needed:
 
 - **Folding lost the back button.** Rotating goes through the override above; folding changes the *display's* size class, and UIKit collapses the split itself. An open detail then came up as the stack's root, with no way back to the list short of tapping the tab again. Showing the list and pushing the detail again on that change (the `onChange` above) restores the back button; a sheet presented from the detail stayed open through it. The 50 ms are a pause between two navigation updates, not a tuned value.
 - **Keep the detail column's container constant.** A detail that is sometimes a `NavigationStack` and sometimes a placeholder without one (nothing selected) is its own branch. Launched on the outer display and then unfolded, the empty column had no stack, and the *list's* toolbar item showed up a second time in the detail's vertical bar. Wrap the placeholder in the same stack as the content.
+- **A tab that was hidden while the device unfolded kept a ghost toolbar item.** With the split in a `TabView`, unfolding while another tab was on screen and then opening the split's tab left its list's toolbar button a second time in the vertical bar that all tabs share, visible on every tab until the next fold. UIKit expands the hidden tab's split and the item stays behind. Rebuilding the split when a screen appears after a size-class change while it was hidden (`isOnScreen`, `.id(buildID)` above) fixed it. A hidden tab can't have a sheet open, and selection and `showsDetail` live with the caller, so the rebuild loses nothing; a detail that was open comes back pushed. Reproduce by switching tabs across a fold, not only by folding on the tab itself.
 - **`.searchable` in a column can land in the wrong bar.** A screen in the detail column carrying `.searchable`, preselected while two columns showed, lost its search after folding: the search button replaced the list's toolbar item on the outer display instead. Screens shown in a hub's detail column draw their own search field in the content; keep `.searchable` for where they are a sheet of their own.
 
 ## Column widths: leave them alone
