@@ -26,8 +26,9 @@ check() { # <file> <min-iOS> [extra swiftc flags…]
 
 check "$ROOT/tests/Samples.swift" 26.0
 check "$ROOT/tests/SamplesUIKit.swift" 26.0
-# The probe has to build in apps that deploy far further back than the Duo.
-check "$ROOT/skills/iphone-duo-adaptation/assets/DuoLayoutProbe.swift" 17.0 -D DEBUG
+# The probe has to build in apps that deploy far further back than the Duo,
+# and next to the app's own types (tests/AppTypes.swift: a `Logger`).
+check "$ROOT/skills/iphone-duo-adaptation/assets/DuoLayoutProbe.swift" 17.0 -D DEBUG "$ROOT/tests/AppTypes.swift"
 
 # Again with MainActor as the default isolation — what new Xcode project
 # templates use (SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor). Code that compiles
@@ -36,6 +37,6 @@ check "$ROOT/skills/iphone-duo-adaptation/assets/DuoLayoutProbe.swift" 17.0 -D D
 echo "-- default isolation: MainActor"
 check "$ROOT/tests/Samples.swift" 26.0 -default-isolation MainActor
 check "$ROOT/tests/SamplesUIKit.swift" 26.0 -default-isolation MainActor
-check "$ROOT/skills/iphone-duo-adaptation/assets/DuoLayoutProbe.swift" 17.0 -D DEBUG -default-isolation MainActor
+check "$ROOT/skills/iphone-duo-adaptation/assets/DuoLayoutProbe.swift" 17.0 -D DEBUG -default-isolation MainActor "$ROOT/tests/AppTypes.swift"
 
 exit $status

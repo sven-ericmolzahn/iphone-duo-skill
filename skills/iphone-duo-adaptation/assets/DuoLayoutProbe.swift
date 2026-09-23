@@ -27,7 +27,7 @@ import OSLog
 
 #if DEBUG
 
-private let duoProbeLog = Logger(
+private let duoProbeLog = os.Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "app",
     category: "DuoProbe"
 )

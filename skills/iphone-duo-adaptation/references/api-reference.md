@@ -26,8 +26,8 @@ Declared in **SwiftUICore**, iOS 27.1.
 | `View.splitArrangementLayoutRatio(_:)` | `CGFloat?`. **Apply to a pane.** |
 | `View.splitArrangementLayoutRatio(minHorizontal:idealHorizontal:maxHorizontal:minVertical:idealVertical:maxVertical:)` | all `CGFloat?`. **Apply to a pane.** |
 | `View.splitArrangementFixedLayoutSize(horizontal:vertical:)` | `Bool`, default `true`. **Apply to a pane.** |
-| `View.overlayArrangementEdge(_:)` | overloads for `VerticalEdge?` and `HorizontalEdge?` — write `VerticalEdge.bottom`, not `.bottom`, to disambiguate |
-| `EnvironmentValues.overlayArrangementZIndex` | `Int` — `> 0` while this pane is layered above the other |
+| `View.overlayArrangementEdge(_:)` | overloads for `VerticalEdge?` and `HorizontalEdge?` — write `VerticalEdge.bottom`, not `.bottom`, to disambiguate. `VerticalEdge.bottom` put both panes on the flat half in the table-top pose (`arrangement-views.md`) |
+| `EnvironmentValues.overlayArrangementZIndex` | `Int`; by its name `> 0` while this pane is layered above the other. Measured 0 in both panes, layered and parted (`arrangement-views.md`) |
 | `EnvironmentValues.splitArrangementAxis` | `Axis?` — `nil` outside a split arrangement |
 | `ReservedRegion` | `id`, `kind`, `frame: CGRect` (includes margins), `margins: EdgeInsets`, `isActive: Bool`; `Identifiable`, `Hashable`, `Sendable` |
 | `ReservedRegion.Kind` | `.division` (fold), `.occlusion` (cameras) |

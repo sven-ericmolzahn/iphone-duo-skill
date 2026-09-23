@@ -78,6 +78,7 @@ Observed, not documented; expect them to change.
 - **Restarting `CoreSimulatorService`** (a common fix for dead simulator input) shuts the device down; it boots again *closed*, so the pose you were testing is lost.
 - Apps built against an older deployment target than the simulator runtime's minimum simply refuse to install on older-runtime iPads — if you verify a wide layout on an iPad instead, pick one whose runtime is ≥ the app's deployment target.
 - **`xcrun simctl pbcopy` did not reach the app.** Pasting into a text field after `pbcopy` pasted nothing. Type the text instead.
+- **Typed text follows the simulator's keyboard layout.** With a German layout, `@` typed by an automation tool arrived as `"`, so an email address came out wrong without any error. Type the parts around it and tap the on-screen keyboard's `@` key on an email field, then read the field back before submitting.
 
 ## For agents with screen control
 

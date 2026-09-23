@@ -82,9 +82,9 @@ The outer display is *wider and shorter* than any other iPhone (an iPhone 17 Pro
 
 | The screen has… | Use | Because |
 |---|---|---|
-| List → detail (selection drives the other pane) | `NavigationSplitView` / `UISplitViewController` | It's navigation. Collapses on the outer display and snaps its columns to the fold by itself. Two columns on the inner display **in landscape only**: in portrait it hides the list or lays it over the detail, so enter it on the same condition as an arrangement (`references/split-views.md`). |
+| List → detail (selection drives the other pane) | `NavigationSplitView` / `UISplitViewController` | It's navigation. Collapses on the outer display and snaps its columns to the fold by itself. Two columns on the inner display **in landscape only**: in portrait it hides the list or lays it over the detail, so collapse it on the same condition as an arrangement — by overriding its size class, never by swapping in a `NavigationStack`, which closes every sheet on rotation (`references/split-views.md`). |
 | Two peers that are both always relevant (player + queue, hero + shelf, map + results) | `ArrangementView` with `.split` | Side by side when wide, stacked when tall, and snaps the panes to the two halves when folded. |
-| A foreground layered over a background (controls over a page, shutter over a viewfinder) | `ArrangementView` with `.overlay` | Layered when flat; when partially folded the two move to opposite sides of the hinge. |
+| A foreground layered over a background (controls over a page, shutter over a viewfinder) | `ArrangementView` with `.overlay` | Layered when flat; when partially folded the two move to opposite sides of the hinge. Without `overlayArrangementEdge`: a bottom edge kept both on the flat half in table-top. |
 | One scrolling column | Nothing new — cap its width | A feed or article scrolls through the fold; scrolling content is exempt from fold avoidance. |
 | A grid | Nothing new — compute columns from measured width | Prefer an **even** column count when a hinge exists so the fold falls in a gutter. |
 

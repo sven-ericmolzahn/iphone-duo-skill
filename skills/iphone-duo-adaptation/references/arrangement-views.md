@@ -178,8 +178,7 @@ There is no foldable API: `fold`, `foldable` and `folding` do not occur in the 2
 
 ```swift
 ArrangementView {
-    ReaderControls()
-        .overlayArrangementEdge(VerticalEdge.bottom)     // spell out the type: there are two overloads
+    ReaderControls()                                 // no overlayArrangementEdge, see below
 } secondary: {
     PageView()
 }
@@ -190,22 +189,42 @@ ArrangementView {
 - Partially folded, the primary goes to the trailing/bottom side of the fold and the secondary to the leading/top side. For a book-like pose that puts a page on one side and its controls on the other; on a table-top pose, content on the upright half and controls on the half lying flat, where they are easy to tap.
 - The primary can adapt to which situation it is in — see the next section.
 
+Measured on the iPhone Duo simulator with a photo viewer (photo as secondary, caption as primary) and a card stack with its buttons, 2026-09-23:
+
+| Configuration | Flat | Book pose | Table-top |
+|---|---|---|---|
+| `.overlay`, no edge | layered | photo leading 455.5, caption trailing 371.5 ✓ | photo on the upright half, caption on the flat one ✓ |
+| `.overlay`, primary `.overlayArrangementEdge(VerticalEdge.bottom)` | layered | photo leading, caption trailing ✓ | **both on the flat half, layered; upright half empty** ✗ |
+| `.overlay.axes(.vertical)` or `.axes([.horizontal, .vertical])`, edge `.bottom` | layered | not checked | both on the flat half ✗ |
+| `.overlay`, edge `VerticalEdge.top` | not checked | not checked | parted, **swapped**: caption up, photo flat ✗ |
+| `.overlay`, edge `HorizontalEdge.trailing` | not checked | not checked | photo up, caption flat ✓ |
+
+So leave `overlayArrangementEdge` off unless you have measured what it does in the table-top pose. The book pose parts either way, which is why a bottom edge looks right until someone stands the device up.
+
+While layered, **both panes get the whole container** (measured 867 × 553 each), exactly like `ZStack` layers: the primary places its controls itself. It lies on top, and touches in its empty areas reached the secondary (a drag on a card under a column of spacers and buttons worked); mark a purely decorative primary `allowsHitTesting(false)` anyway.
+
 ## Reading the arrangement from inside a pane
 
-```swift
-@Environment(\.overlayArrangementZIndex) private var zIndex      // > 0: layered over the other pane
-@Environment(\.splitArrangementAxis) private var splitAxis       // .horizontal / .vertical / nil
+`overlayArrangementZIndex` did **not** tell layered from parted in the configurations measured above: it read 0 in both panes flat (layered) and did not change in the book pose (parted), with a bottom edge set; with no edge it was not checked. Ask the geometry instead: the panes overlap while layered and stop overlapping once the fold parts them.
 
-var body: some View {
-    HStack {
-        Button("Previous", systemImage: "chevron.left") { }
-        if zIndex == 0 { Text(chapterTitle) }        // side by side now: room to say more
-        Button("Next", systemImage: "chevron.right") { }
-    }
+```swift
+@State private var controlsFrame: CGRect = .zero
+@State private var contentFrame: CGRect = .zero
+private var isLayered: Bool { controlsFrame.isEmpty || contentFrame.isEmpty || controlsFrame.intersects(contentFrame) }
+
+ArrangementView {
+    ReaderControls(isLayered: isLayered)             // e.g. drop a scrim, say more when parted
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { controlsFrame = $0 }
+} secondary: {
+    PageView()
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { contentFrame = $0 }
 }
+.arrangementViewStyle(.overlay)
 ```
 
-Use these to change *density* — collapse a list to a strip while it is layered, expand it when it has a half to itself. Don't use them to add or remove functionality.
+`splitArrangementAxis` (`.horizontal` / `.vertical` / nil) exists for split arrangements; it was not measured.
+
+Use this to change *density* — collapse a list to a strip while it is layered, expand it when it has a half to itself. Don't use it to add or remove functionality. A primary that had shrunk its content to leave room for the controls must give that room back once parted: in a card stack, each layer kept a spacer for the other while layered and dropped it when parted.
 
 ## UIKit
 
