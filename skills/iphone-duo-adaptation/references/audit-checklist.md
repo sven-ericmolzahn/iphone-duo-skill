@@ -55,14 +55,19 @@ Check afterwards that the phone-width path is pixel-identical: a cap above the p
 
 For each top-level screen on a regular-width, wide container, ask Apple's question: *is this a centred phone layout on a display that is now wide?*
 
-- [ ] List → detail flows use `NavigationSplitView` / `UISplitViewController` and show both levels on the inner display in landscape. In portrait they fall back to a stack: there `NavigationSplitView` hides the list or lays it over the detail (`split-views.md`).
+- [ ] List → detail flows use `NavigationSplitView` / `UISplitViewController` and show both levels on the inner display in landscape. In portrait they collapse to one column: there `NavigationSplitView` hides the list or lays it over the detail (`split-views.md`).
+- [ ] One column comes from collapsing the same `NavigationSplitView` (a compact size-class override), not from an `if` that swaps in a `NavigationStack`: the swap rebuilds both columns and closes every sheet presented from them. Test: open an edit sheet from a detail, change a value, rotate and fold.
+- [ ] Folded with a detail open, the detail has a back button to the list.
+- [ ] Switching tabs across a fold (unfold on tab A, then open tab B) leaves no second copy of B's toolbar items in the vertical bar.
 - [ ] No `navigationSplitViewColumnWidth` on the list column — with one, the columns stop snapping to the fold.
 - [ ] A detail column whose screens push a second level has a stack bound to a path, emptied when the selection changes; otherwise the pushed screen outlives the selection.
 - [ ] Features that open in sheets from a dashboard were considered as a hub: the dashboard as the list, the feature beside it. Screens that are both sheet and detail own a `NavigationStack` (and a Close button) only as a sheet.
 - [ ] Two-peer screens use `ArrangementView` with `.split`; layered screens use `.overlay`. See `arrangement-views.md`.
+- [ ] Overlay arrangements checked in the table-top pose: content on the upright half, controls on the flat one. No `overlayArrangementEdge(VerticalEdge.bottom)`, which kept both on the flat half.
 - [ ] Every pane has its own minimum size. The arrangement is entered only when the container can satisfy both.
 - [ ] The single-column path is still there, unchanged, for compact width and tall containers.
 - [ ] The same hierarchy and the same functions exist on both displays. More *levels* visible on the inner display is good; features that exist only there is not.
+- [ ] Screens with text fields that enter two panes on "wider than tall" were checked in portrait with the keyboard up: the keyboard shortens the container until it is wider than tall.
 - [ ] The entry condition checks the **vertical** size class as well — a Plus/Max iPhone in landscape is regular width, compact height, and must stay on the old layout.
 - [ ] iPad impact noted: a rule like "regular in both size classes and wider than tall" changes iPad-landscape too.
 

@@ -43,6 +43,9 @@ struct PlayerScreen: View {
 struct LibraryScreen: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    /// The container without the keyboard: the keyboard shortens a portrait
+    /// container until it is "wider than tall"
+    @State private var sizeWithoutKeyboard: CGSize = .zero
 
     private static let primaryMin: CGFloat = 280
     private static let secondaryMin: CGFloat = 360
@@ -60,7 +63,7 @@ struct LibraryScreen: View {
         // Decided in the pass that lays it out; a size measured into @State
         // starts at .zero, so its first evaluation always takes the fallback.
         GeometryReader { proxy in
-            if #available(iOS 27.1, *), usesPanes(in: proxy.size) {
+            if #available(iOS 27.1, *), usesPanes(in: layoutSize(proxy.size)) {
                 ArrangementView {
                     PlayerView()
                         .splitArrangementLayoutSize(minWidth: Self.primaryMin, idealWidth: 330, maxWidth: 440)
@@ -73,6 +76,17 @@ struct LibraryScreen: View {
                 ScrollView { VStack { PlayerView().frame(height: 300); QueueView().frame(height: 600) } }
             }
         }
+        .background {
+            Color.clear
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { sizeWithoutKeyboard = $0 }
+                .ignoresSafeArea(.keyboard)
+        }
+    }
+
+    private func layoutSize(_ size: CGSize) -> CGSize {
+        guard sizeWithoutKeyboard.width == size.width,
+              sizeWithoutKeyboard.height > size.height else { return size }
+        return CGSize(width: size.width, height: sizeWithoutKeyboard.height)
     }
 }
 
@@ -154,12 +168,23 @@ struct HeroBesideShelf: View {
 
 @available(iOS 27.1, *)
 struct ReaderScreen: View {
+    // overlayArrangementZIndex read 0 layered and parted alike; the frames tell
+    @State private var controlsFrame: CGRect = .zero
+    @State private var pageFrame: CGRect = .zero
+
+    private var isLayered: Bool {
+        controlsFrame.isEmpty || pageFrame.isEmpty || controlsFrame.intersects(pageFrame)
+    }
+
     var body: some View {
         ArrangementView {
-            ReaderControls()
-                .overlayArrangementEdge(VerticalEdge.bottom)
+            // No overlayArrangementEdge: VerticalEdge.bottom put both panes on
+            // the flat half in the table-top pose
+            ReaderControls(isLayered: isLayered)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { controlsFrame = $0 }
         } secondary: {
             PageView()
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { pageFrame = $0 }
         }
         .arrangementViewStyle(.overlay)
     }
@@ -167,16 +192,14 @@ struct ReaderScreen: View {
 
 @available(iOS 27.1, *)
 struct ReaderControls: View {
-    /// > 0 while this pane is layered over the other one; 0 once the fold has
-    /// moved the panes side by side.
-    @Environment(\.overlayArrangementZIndex) private var zIndex
+    let isLayered: Bool
     /// `.horizontal`, `.vertical`, or nil when not inside a split arrangement.
     @Environment(\.splitArrangementAxis) private var splitAxis
 
     var body: some View {
         HStack {
             Button("Previous", systemImage: "chevron.left") { }
-            if zIndex == 0 { Text("Chapter 3").font(.headline) }    // room to say more
+            if !isLayered { Text("Chapter 3").font(.headline) }    // a half of its own: room to say more
             Button("Next", systemImage: "chevron.right") { }
         }
         .labelStyle(.iconOnly)
@@ -439,8 +462,10 @@ struct TeleprompterCamera: View {
     }
 }
 
-// MARK: - List → detail: two columns only where the list stays beside the detail
+// MARK: - List → detail: one split view, collapsed where one column fits
 
+/// One container in every layout: swapping NavigationSplitView for a
+/// NavigationStack on rotation closed every sheet presented from the columns.
 struct ListDetailSplit<ListContent: View, DetailContent: View>: View {
     @Binding var showsDetail: Bool                      // set together with the selection
     @ViewBuilder var list: () -> ListContent
@@ -449,23 +474,51 @@ struct ListDetailSplit<ListContent: View, DetailContent: View>: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var isWiderThanTall = false
+    @State private var isOnScreen = false
+    @State private var rebuildsOnAppear = false
+    @State private var buildID = 0
+
+    private var showsBothColumns: Bool {
+        horizontalSizeClass == .regular && verticalSizeClass == .regular && isWiderThanTall
+    }
 
     var body: some View {
-        Group {
-            if horizontalSizeClass == .regular, verticalSizeClass == .regular, isWiderThanTall {
-                NavigationSplitView(columnVisibility: .constant(.all)) {
-                    list().toolbar(removing: .sidebarToggle)
-                } detail: {
-                    detail()
-                }
-                .navigationSplitViewStyle(.balanced)
-            } else {
-                NavigationStack {
-                    list().navigationDestination(isPresented: $showsDetail) { detail() }
-                }
+        NavigationSplitView(
+            columnVisibility: .constant(.all),
+            preferredCompactColumn: Binding(
+                get: { showsDetail ? .detail : .sidebar },
+                set: { showsDetail = $0 == .detail }
+            )
+        ) {
+            list()
+                .toolbar(removing: .sidebarToggle)
+                .environment(\.horizontalSizeClass, horizontalSizeClass)
+        } detail: {
+            detail()
+                .environment(\.horizontalSizeClass, horizontalSizeClass)
+        }
+        .navigationSplitViewStyle(.balanced)
+        .environment(\.horizontalSizeClass, showsBothColumns ? horizontalSizeClass : .compact)
+        .id(buildID)
+        .onGeometryChange(for: Bool.self) { $0.size.width > $0.size.height } action: { isWiderThanTall = $0 }
+        // Hidden (another tab on screen): rebuild on appear, or UIKit leaves
+        // the list's toolbar item in the shared vertical bar. On screen:
+        // folding collapses the split in UIKit; push the open detail again
+        // so it gets its back button
+        .onChange(of: horizontalSizeClass) { old, new in
+            guard isOnScreen else { rebuildsOnAppear = true; return }
+            guard old == .regular, new == .compact, showsDetail else { return }
+            showsDetail = false
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(50))
+                showsDetail = true
             }
         }
-        .onGeometryChange(for: Bool.self) { $0.size.width > $0.size.height } action: { isWiderThanTall = $0 }
+        .onAppear {
+            isOnScreen = true
+            if rebuildsOnAppear { rebuildsOnAppear = false; buildID += 1 }
+        }
+        .onDisappear { isOnScreen = false }
     }
 }
 
