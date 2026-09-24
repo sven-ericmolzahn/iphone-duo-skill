@@ -43,6 +43,9 @@ struct PlayerScreen: View {
 struct LibraryScreen: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    /// The container without the keyboard: the keyboard shortens a portrait
+    /// container until it is "wider than tall"
+    @State private var sizeWithoutKeyboard: CGSize = .zero
 
     private static let primaryMin: CGFloat = 280
     private static let secondaryMin: CGFloat = 360
@@ -60,7 +63,7 @@ struct LibraryScreen: View {
         // Decided in the pass that lays it out; a size measured into @State
         // starts at .zero, so its first evaluation always takes the fallback.
         GeometryReader { proxy in
-            if #available(iOS 27.1, *), usesPanes(in: proxy.size) {
+            if #available(iOS 27.1, *), usesPanes(in: layoutSize(proxy.size)) {
                 ArrangementView {
                     PlayerView()
                         .splitArrangementLayoutSize(minWidth: Self.primaryMin, idealWidth: 330, maxWidth: 440)
@@ -73,6 +76,17 @@ struct LibraryScreen: View {
                 ScrollView { VStack { PlayerView().frame(height: 300); QueueView().frame(height: 600) } }
             }
         }
+        .background {
+            Color.clear
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { sizeWithoutKeyboard = $0 }
+                .ignoresSafeArea(.keyboard)
+        }
+    }
+
+    private func layoutSize(_ size: CGSize) -> CGSize {
+        guard sizeWithoutKeyboard.width == size.width,
+              sizeWithoutKeyboard.height > size.height else { return size }
+        return CGSize(width: size.width, height: sizeWithoutKeyboard.height)
     }
 }
 

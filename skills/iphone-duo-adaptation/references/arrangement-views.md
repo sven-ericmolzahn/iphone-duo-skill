@@ -69,6 +69,29 @@ var body: some View {
 
 Read the size inside a `GeometryReader`, not into `@State` through `onGeometryChange`. A measured `@State` starts at `.zero`, so the first evaluation always takes the single-column branch and the measurement then swaps the layout. The `GeometryReader` decides in the same pass that lays the screen out.
 
+**The keyboard makes a portrait container "wider than tall".** On the inner display in portrait (669 × 786 content), a login screen switched to two panes the moment the keyboard came up: the keyboard shortens the container, and what was left above it was wider than tall. Decide from the height without the keyboard while the width is unchanged; a new width means a rotation or a fold, where the measured size is right:
+
+```swift
+@State private var sizeWithoutKeyboard: CGSize = .zero
+
+GeometryReader { proxy in
+    if #available(iOS 27.1, *), usesPanes(in: layoutSize(proxy.size)) { … } else { … }
+}
+.background {
+    Color.clear
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { sizeWithoutKeyboard = $0 }
+        .ignoresSafeArea(.keyboard)
+}
+
+private func layoutSize(_ size: CGSize) -> CGSize {
+    guard sizeWithoutKeyboard.width == size.width,
+          sizeWithoutKeyboard.height > size.height else { return size }
+    return CGSize(width: size.width, height: sizeWithoutKeyboard.height)
+}
+```
+
+Measured with it: portrait with the keyboard up stayed one column, rotating to landscape with the keyboard up gave two panes, rotating back gave one column again.
+
 `if #available(iOS 27.1, *), usesPanes` is valid Swift. On iPhone Duo this condition is true for the inner display in landscape (flat or folded) and false for the outer display and for the inner display in portrait. It is also true on an iPad in landscape — usually what you want, but a behaviour change worth telling the user about.
 
 **Why the vertical size class is in there.** Plus and Max iPhones have been *regular width, compact height* in landscape for a decade. "Regular width and wider than tall" is true for them too, so without the vertical check a two-pane layout designed for a 669-point-tall display appears on a 440-point-tall one — a regression on shipping devices, introduced by Duo work, that nobody tests because nobody rotates the phone. iPhone Duo's inner display is regular in both directions; no other iPhone is.

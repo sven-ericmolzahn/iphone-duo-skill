@@ -67,6 +67,7 @@ For each top-level screen on a regular-width, wide container, ask Apple's questi
 - [ ] Every pane has its own minimum size. The arrangement is entered only when the container can satisfy both.
 - [ ] The single-column path is still there, unchanged, for compact width and tall containers.
 - [ ] The same hierarchy and the same functions exist on both displays. More *levels* visible on the inner display is good; features that exist only there is not.
+- [ ] Screens with text fields that enter two panes on "wider than tall" were checked in portrait with the keyboard up: the keyboard shortens the container until it is wider than tall.
 - [ ] The entry condition checks the **vertical** size class as well — a Plus/Max iPhone in landscape is regular width, compact height, and must stay on the old layout.
 - [ ] iPad impact noted: a rule like "regular in both size classes and wider than tall" changes iPad-landscape too.
 
